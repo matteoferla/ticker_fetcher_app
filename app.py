@@ -110,4 +110,4 @@ def get_tickers():
         return '\n'.join(json.load(open(os.path.join('lists', file))))
 
 if __name__ == '__main__':
-    serve(app)
+    serve(app, port=8041)
