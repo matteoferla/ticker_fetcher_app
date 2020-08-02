@@ -12,7 +12,7 @@
                         key: window.financial
                     })
                             .then(msg => {
-                                tickerList.innerHMTL = msg;
+                                tickerList.innerHTML = msg;
                             });
                 });
                 // download
