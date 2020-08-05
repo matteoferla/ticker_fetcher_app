@@ -114,7 +114,7 @@ def download():
     else:
         return open(os.path.join('datasets', file)).read()
 
-@app.route('/retrieve')
+@app.route('/retrieve', methods=["GET", "POST"])
 def retrieve():
     assert_welcome()
     tickers = request.args['tickers'].replace(';', '\n').replace(',', '\n').replace(' ', '\n').split('\n')
