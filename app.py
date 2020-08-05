@@ -19,14 +19,14 @@ dictConfig({
     'formatters': {'default': {
         'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
     }},
-    'handlers': {'log': {
-        'class': 'logging.handlers.FileHandler',
+    'handlers': {'logfile': {
+        'class': 'logging.FileHandler',
         'filename': 'log.log',
         'formatter': 'default'
     }},
     'root': {
         'level': 'INFO',
-        'handlers': ['log']
+        'handlers': ['logfile']
     }
 })
 
