@@ -16,17 +16,14 @@ __version__ = "1.0"
 import argparse
 from datetime import date, datetime
 
-from pprint import PrettyPrinter
-pp = PrettyPrinter()
-debugprint = lambda *x: 0
-#debugprint=print
-
-import json, csv, os, re, collections, math, time
+import json, csv, os, re, collections, math, time, logging
 import urllib.request
 import numpy as np
 from warnings import warn
 from collections import defaultdict
 from datetime import date, timedelta, datetime
+
+logger = logging.getLogger(__name__)
 
 from typing import Union, Dict #TypedDict
 
@@ -91,10 +88,10 @@ class Finance():
         url = 'https://www.alphavantage.co/query?function={time}&symbol={symbol}&apikey={alpha}'.format(symbol=symbol,
                                                                                                         time=self.timequery,
                                                                                                         alpha=os.environ['ALPHA_KEY'])
-        debugprint(url)
+        logger.debug(url)
         with urllib.request.urlopen(url) as response:
             data = json.loads(response.read())
-        debugprint(data)
+        logger.debug(data)
         if 'Information' in data:
             time.sleep(10)
             warn('Maxed out on time...')
@@ -126,7 +123,7 @@ class Finance():
                 data = self.ticker_fetcher(symbol, write_flag=False)
                 time.sleep(15)
                 shareball[symbol] = data
-                print('{} done'.format(symbol))
+                logger.info('{} done'.format(symbol))
             except Exception as err:
                 warn(symbol + str(err))
                 errorball.append(symbol)
@@ -144,9 +141,9 @@ class Finance():
                 newshareball[symbol] = self.shareball[symbol]
             except Exception:
                 if 'Error Message' in self.shareball[symbol]:
-                    print(symbol, 'removed due to error')
+                    logger.warning(f'{symbol} removed due to error')
                 else:
-                    print('UNKNOWN ERROR with', symbol)
+                    logger.warning(f'UNKNOWN ERROR with {symbol}')
         self.shareball = newshareball
 
     def side_slicer(self):
@@ -186,7 +183,7 @@ class Finance():
                         if w not in corrected:
                             corrected[w] = {}
                         corrected[w][symbol] = sd[thisday]
-                        debugprint('Matched', thisday)
+                        logger.debug(f'Matched {thisday}')
                 weekof -= timedelta(days=7)
         self.sideslice = corrected
 
