@@ -12,6 +12,24 @@ from flask_mako import MakoTemplates, render_template
 
 from waitress import serve
 
+from logging.config import dictConfig
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'log': {
+        'class': 'logging.handlers.FileHandler',
+        'filename': 'log.log',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['log']
+    }
+})
+
 app = Flask(__name__)
 mako = MakoTemplates(app)
 
@@ -36,11 +54,16 @@ class ScheduledFinance:
 
     def retrieve(self, dataset: str, today: str, tickers: list):
         with self.lock:
-            f = Finance('week adj')
-            f.get_tickers(tickers)
-            f.write_values(os.path.join('datasets', f'{dataset}_{today}.csv'))
-            self.slack(f'Finance tickers {dataset} retrieved ({len(tickers)}')
-            print('done')
+            try:
+                f = Finance('week adj')
+                f.get_tickers(tickers)
+                f.write_values(os.path.join('datasets', f'{dataset}_{today}.csv'))
+                self.slack(f'Finance tickers {dataset} retrieved ({len(tickers)}')
+                app.logger.info(f'done {dataset}_{today}')
+            except:
+                msg = f'failed {dataset}_{today}'
+                app.logger.warning(msg)
+                self.slack(msg)
 
     def slack(self, msg):
         """
@@ -51,7 +74,7 @@ class ScheduledFinance:
         """
         # sanitise.
         if 'SLACK_WEBHOOK' not in os.environ:
-            print('no SLACK_WEBHOOK')
+            app.logger.warning('no SLACK_WEBHOOK')
             return False
         msg = unicodedata.normalize('NFKD', msg).encode('ascii', 'ignore').decode('ascii')
         msg = re.sub('[^\w\s\-.,;?!@#()\[\]]', '', msg)
@@ -61,7 +84,7 @@ class ScheduledFinance:
         if r.status_code == 200 and r.content == b'ok':
             return True
         else:
-            print(f'{msg} failed to send (code: {r.status_code}, {r.content}).')
+            app.logger.warning(f'{msg} failed to send (code: {r.status_code}, {r.content}).')
             return False
 
 
@@ -75,6 +98,7 @@ def welcome():
 
 def assert_welcome():
     if request.args.get('key') != os.environ['FINANCIAL_KEY']:
+        app.logger.info('Access forbidden')
         abort(403, description="No access key provided")
 
 
@@ -82,8 +106,10 @@ def assert_welcome():
 def download():
     file = os.path.split(request.args['dataset'])[1]
     if os.path.splitext(file)[1] != '.csv':
+        app.logger.info(f'Dodgy extension: {file}')
         abort(401, description="Dodgy extension!")
     if not os.path.exists(os.path.join('datasets', file)):
+        app.logger.info(f'File not found.')
         abort(404, description="File not found")
     else:
         return open(os.path.join('datasets', file)).read()
@@ -98,6 +124,7 @@ def retrieve():
     with open(os.path.join('lists', f'{dataset}_{today}.json'), 'w') as w:
         json.dump(tickers, w)
     ScheduledFinance(dataset, today, tickers)
+    app.logger.info('Job added.')
     return 'JOB ADDED'
 
 @app.route('/get_tickers')
