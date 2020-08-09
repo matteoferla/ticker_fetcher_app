@@ -97,10 +97,20 @@ def welcome():
 
 
 def assert_welcome():
-    if request.args.get('key') != os.environ['FINANCIAL_KEY']:
+    if request.json is not None and request.json['key'] == os.environ['FINANCIAL_KEY']:
+        return True
+    if request.args.get('key') == os.environ['FINANCIAL_KEY']:
+        return True
+    else:
         app.logger.info('Access forbidden')
         abort(403, description="No access key provided")
 
+def read_data():
+    # this is not tested or used.
+    if request.json is not None:
+        return request.json
+    else:
+        return request.args
 
 @app.route('/download')
 def download():
