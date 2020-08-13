@@ -60,8 +60,8 @@ class ScheduledFinance:
                 f.write_values(os.path.join('datasets', f'{dataset}_{today}.csv'))
                 self.slack(f'Finance tickers {dataset} retrieved ({len(tickers)}')
                 app.logger.info(f'done {dataset}_{today}')
-            except:
-                msg = f'failed {dataset}_{today}'
+            except Exception as error:
+                msg = f'failed {dataset}_{today} due to {type(error).__name__}: {error}'
                 app.logger.warning(msg)
                 self.slack(msg)
 
@@ -152,6 +152,6 @@ if __name__ == '__main__':
     except Exception as error:
         import logging
         logger = logging.getLogger(__name__)
-        msg = f'{type(error).__name__}: {error}.'
+        msg = f'LETHAL: {type(error).__name__}: {error}.'
         logger.critical(msg)
         ScheduledFinance.__new__(ScheduledFinance).slack(msg)
