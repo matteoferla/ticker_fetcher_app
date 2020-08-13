@@ -147,4 +147,11 @@ def get_tickers():
         return '\n'.join(json.load(open(os.path.join('lists', file))))
 
 if __name__ == '__main__':
-    serve(app, port=8041)
+    try:
+        serve(app, port=8041)
+    except Exception as error:
+        import logging
+        logger = logging.getLogger(__name__)
+        msg = f'{type(error).__name__}: {error}.'
+        logger.critical(msg)
+        ScheduledFinance.__new__(ScheduledFinance).slack(msg)
