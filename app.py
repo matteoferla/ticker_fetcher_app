@@ -1,5 +1,10 @@
 import os, re, datetime, json, threading, time, requests, unicodedata
 from apscheduler.schedulers.background import BackgroundScheduler
+
+for key in ('ALPHA_KEY', 'FINANCIAL_KEY', 'SLACK_WEBHOOK'):
+    if key not in os.environ:
+        raise EnvironmentError('Please specify environment variable '+key)
+
 #
 # import logging
 #
@@ -20,23 +25,34 @@ dictConfig({
         'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
     }},
     'handlers': {'logfile': {
-        'class': 'logging.FileHandler',
-        'filename': 'log.log',
-        'formatter': 'default'
-    }},
+                                'class': 'logging.FileHandler',
+                                'filename': 'log.log',
+                                'level': 'INFO',
+                                'formatter': 'default'
+                            },'stream': {
+                                'class': 'logging.StreamHandler',
+                                'level': 'INFO',
+                                'formatter': 'default',
+                                'stream': 'ext://sys.stdout'
+                            }
+                },
     'root': {
         'level': 'INFO',
-        'handlers': ['logfile']
+        'handlers': ['logfile', 'stream']
     }
 })
+
+
 
 app = Flask(__name__)
 mako = MakoTemplates(app)
 
 #####
 if not os.path.exists('datasets'):
+    print('Making folder dataset')
     os.mkdir('datasets')
 if not os.path.exists('lists'):
+    print('Making folder list')
     os.mkdir('lists')
 
 ####################################
@@ -150,8 +166,9 @@ if __name__ == '__main__':
     try:
         serve(app, port=8041)
     except Exception as error:
+        msg = f'LETHAL: {type(error).__name__}: {error}.'
+        print(msg)
         import logging
         logger = logging.getLogger(__name__)
-        msg = f'LETHAL: {type(error).__name__}: {error}.'
         logger.critical(msg)
         ScheduledFinance.__new__(ScheduledFinance).slack(msg)
