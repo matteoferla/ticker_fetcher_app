@@ -17,13 +17,10 @@ import argparse
 from datetime import date, datetime
 
 import json, csv, os, re, collections, math, time, logging
-import urllib.request
+import requests
 import numpy as np
-from warnings import warn
 from collections import defaultdict
 from datetime import date, timedelta, datetime
-
-logger = logging.getLogger(__name__)
 
 from typing import Union, Dict #TypedDict
 
@@ -45,6 +42,8 @@ ShareDict.__doc__ = """{'Meta Data': {'1. Information': 'Weekly Adjusted Prices 
     }"""'''
 
 class Finance():
+    logger = logging.getLogger(__name__)
+
     def __init__(self, time: str, max_points: bool=None):
         """
         Set the settings.
@@ -68,7 +67,7 @@ class Finance():
             self.timecolumn = 'Weekly Time Series'
         else:
             raise NotImplementedError
-        warn('time query hardcoded to ``Weekly Adjusted Time Series``')
+        self.logger.warning('time query hardcoded to ``Weekly Adjusted Time Series``')
         self.max_points = max_points  # None or int
         self.shareball = {}
         self.errorball = []
@@ -85,16 +84,16 @@ class Finance():
         :return: data
         :rtype: ShareDict
         """
-        url = 'https://www.alphavantage.co/query?function={time}&symbol={symbol}&apikey={alpha}'.format(symbol=symbol,
-                                                                                                        time=self.timequery,
-                                                                                                        alpha=os.environ['ALPHA_KEY'])
-        logger.debug(url)
-        with urllib.request.urlopen(url) as response:
-            data = json.loads(response.read())
-        logger.debug(data)
+        url = 'https://www.alphavantage.co/query'
+        data = requests.get(url, params=dict(symbol=symbol,
+                                             function=self.timequery,
+                                             datatype='json',
+                                             apikey=os.environ['ALPHA_KEY'])
+                            ).json()
+        self.logger.debug(data)
         if 'Information' in data:
             time.sleep(10)
-            warn('Maxed out on time...')
+            self.logger.info('Maxed out on time...')
             return self.ticker_fetcher(symbol, write_flag)
         if write_flag:
             w = csv.writer(open(symbol + '_data.csv', 'w'))
@@ -123,9 +122,9 @@ class Finance():
                 data = self.ticker_fetcher(symbol, write_flag=False)
                 time.sleep(15)
                 shareball[symbol] = data
-                logger.info('{} done'.format(symbol))
-            except Exception as err:
-                warn(symbol + str(err))
+                self.logger.info('{} done'.format(symbol))
+            except Exception as err: #
+                self.logger.warning(symbol + str(err))
                 errorball.append(symbol)
         self.shareball = shareball
         self.errorball = errorball
@@ -136,14 +135,19 @@ class Finance():
         assert self.shareball, 'No share data. Have you fetched them?'
         newshareball = {}
         for symbol in self.shareball:
+            if 'Weekly Adjusted Time Series' not in self.shareball[symbol]:
+                self.logger.warning(f'{symbol} failed. '+\
+                               f'Keys in `self.shareball["{symbol}"]`: {self.shareball[symbol].keys()}')
+                continue
             try:
+
                 self.shareball[symbol]['Weekly Adjusted Time Series'].keys()
                 newshareball[symbol] = self.shareball[symbol]
             except Exception:
                 if 'Error Message' in self.shareball[symbol]:
-                    logger.warning(f'{symbol} removed due to error')
+                    self.logger.warning(f'{symbol} removed due to error')
                 else:
-                    logger.warning(f'UNKNOWN ERROR with {symbol}')
+                    self.logger.warning(f'UNKNOWN ERROR with {symbol}')
         self.shareball = newshareball
 
     def side_slicer(self):
@@ -183,7 +187,7 @@ class Finance():
                         if w not in corrected:
                             corrected[w] = {}
                         corrected[w][symbol] = sd[thisday]
-                        logger.debug(f'Matched {thisday}')
+                        self.debug(f'Matched {thisday}')
                 weekof -= timedelta(days=7)
         self.sideslice = corrected
 
